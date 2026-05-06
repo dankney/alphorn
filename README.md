@@ -163,11 +163,7 @@ Additional references:
 
 ## License
 
-Specify your preferred license here — common choices:
-
-- **CC-BY-SA 4.0** — share-alike, requires attribution
-- **MIT** — permissive, requires attribution
-- **CC0** — public domain dedication
+This project is licensed under the **GNU General Public License v2.0**. See [LICENSE](LICENSE) for the full text.
 
 ## Contributing
 
