@@ -14,7 +14,7 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 | **Sections** | 19 (15 straight trunk + 3 curve + 1 bell mouth) |
 | **Section length** | 204.2mm (max print height 247.7mm) |
 | **Curve** | 45° upward bend (3 × 15° at the last three joints) |
-| **Joint type** | Rectangular 3-lug bayonet twist-lock with O-ring seal |
+| **Joint type** | Rectangular 3-lug bayonet twist-lock |
 | **Wall thickness** | 7mm (trunk) → 8mm (bell), linearly interpolated |
 
 ## What's in this repository
@@ -30,7 +30,6 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 
 - **Printer:** Bambu Lab X1C (or any FDM with ≥256mm build height)
 - **Filament:** PLA wood (or any rigid PLA / PETG)
-- **18 × O-rings, 2mm cross-section** — see [O-Ring Sizing](#o-ring-sizing) below
 - **A mouthpiece** — not included in the print. Use either:
   - A commercial alphorn mouthpiece (Stocker, Eggerstorfer, etc.) with shank tip OD ≈ 12mm
   - The Talbot 20mm 3D-printed mouthpiece STL from [argobuilder.com](https://www.argobuilder.com/3d-printed-alphorn.html) — note: scale that STL to **10%** in the slicer
@@ -46,8 +45,7 @@ Verify after printing:
 1. Lugs slide cleanly through axial slots
 2. Quarter-turn locks the joint with a tactile stop
 3. Joint is snug, not loose
-4. O-ring groove holds a 2mm O-ring
-5. Joint is airtight when O-ring is fitted
+4. Joint is airtight when assembled
 
 If the lugs are too tight or too loose, adjust `BAYONET_CL` in the constants block.
 
@@ -98,29 +96,11 @@ Or open `alphorn_print_layout.scad` to see all 19 sections laid out at once for 
 
 Each joint between adjacent sections N and N+1 works as follows:
 
-1. **Section N+1's male end** has 3 rectangular lugs at 120° spacing protruding radially, plus an O-ring groove just behind the lugs
+1. **Section N+1's male end** has 3 rectangular lugs at 120° spacing protruding radially
 2. **Section N's female end** has a collar with three L-shaped slots cut into the inner socket — an axial entry channel and a tangential locking groove
-3. **To assemble:** seat an O-ring in the groove on N+1's male end. Align the lugs with the slots in N's female collar, push N+1 in until the lugs bottom out, then twist about 30° to lock the lugs into the tangential lock channels. The O-ring compresses between the male body and the female socket wall, sealing the joint airtight.
+3. **To assemble:** align the lugs with the slots in N's female collar, push N+1 in until the lugs bottom out, then twist about 30° to lock the lugs into the tangential lock channels.
 
 Section numbers are recessed into each female collar's inner wall — visible when looking down into the open collar before assembly, hidden by the male collar of the next section once joined.
-
-### O-Ring Sizing
-
-You'll need 18 O-rings, all with 2mm cross-section, sized to stretch snugly over the male shank groove of each section. Inner diameters:
-
-| Joint | O-ring ID | Joint | O-ring ID |
-|---|---|---|---|
-| 1–2 | 24.07mm | 10–11 | 65.01mm |
-| 2–3 | 26.64mm | 11–12 | 71.38mm |
-| 3–4 | 29.89mm | 12–13 | 78.04mm |
-| 4–5 | 33.69mm | 13–14 | 84.96mm |
-| 5–6 | 37.96mm | 14–15 | 92.14mm |
-| 6–7 | 42.65mm | 15–16 | 99.57mm |
-| 7–8 | 47.73mm | 16–17 | 110.17mm |
-| 8–9 | 53.17mm | 17–18 | 132.93mm |
-| 9–10 | 58.93mm | 18–19 | 168.60mm |
-
-These are sized 0.5mm undersized to stretch tightly around the shank.
 
 ## Mouthpiece
 
