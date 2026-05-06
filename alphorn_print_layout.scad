@@ -113,8 +113,6 @@ BAYONET_LUG_W     = 8;      // mm  tangential lug width (along circumference)
 BAYONET_LUG_T     = 5;      // mm  axial thickness of lug
 BAYONET_COLLAR    = 20;      // mm  collar length each end
 BAYONET_CL        = 0.25;   // mm  print clearance on lugs
-ORING_DEPTH       = 2.5;    // mm  O-ring groove depth
-ORING_WIDTH       = 2.2;    // mm  O-ring groove width (fits 2mm O-ring)
 
 TEXT_SIZE         = 16;     // mm  character height — fills 80% of the
                              //   20mm socket height; large enough to read
@@ -123,6 +121,7 @@ TEXT_DEPTH        = 1.2;    // mm  recess depth into socket wall
 TEXT_ANGLE        = 60;     // deg angle around socket (between lug slots)
 
 COLLAR_CHAMFER    = 5.0;    // mm  chamfer height/width (45° bevel)
+
 
 // ============================================================
 //  BORE PROFILE FUNCTIONS
@@ -139,20 +138,39 @@ COLLAR_CHAMFER    = 5.0;    // mm  chamfer height/width (45° bevel)
 //
 //  WALL interpolates linearly: 7mm at z=0, 8mm at z=3880
 
-BORE_A = 0.000250;
-BORE_N = 1.4849;
-BORE_C = 6.9997;
+// MOUTHPIECE RECEIVER (leadpipe) — first 42mm of the horn.
+// Bore narrows linearly from 16.7mm at z=0 (the very tip where the
+// mouthpiece sticks out) to 12mm at z=42 (the seat depth where the
+// receiver opens into the main bore). This is the only section of
+// the horn where the bore narrows — it provides the cup-like
+// constriction needed to seat a mouthpiece by taper friction.
+RECEIVER_LEN     = 42;       // mm  length of the mouthpiece receiver
+RECEIVER_TIP_ID  = 16.7;     // mm  bore ID at the mouthpiece end (z=0)
+RECEIVER_END_ID  = 12.0;     // mm  bore ID at the receiver/trunk junction
 
-BELL_A = 0.00015474;
-BELL_B = 0.036846;
+// TRUNK profile (z=42 to z=3140) — power law starting at 12mm and
+// expanding to 92mm at the bell start. Constants fitted so bore=12 at
+// z=42 and bore=92 at z=3140 with the same exponent as the original
+// Talbot profile.
+BORE_A = 0.00026179;
+BORE_N = 1.4849;
+BORE_C = 5.9997;
+
+// BELL profile (z=3140 to z=3880) — quadratic, C1-continuous with the
+// new trunk profile (slope matches trunk derivative at z=3140).
+// Reaches 204mm at z=3880 (bell mouth).
+BELL_A = 0.00015273;
+BELL_B = 0.03833307;
 BELL_C = 92.0;
 
 function bore_id(z) =
-    (z <= TRUNK_LENGTH)
-    ? 2 * (BORE_A * pow(z + 1, BORE_N) + BORE_C)
-    : BELL_A * pow(z - TRUNK_LENGTH, 2)
-      + BELL_B * (z - TRUNK_LENGTH)
-      + BELL_C;
+    (z <= RECEIVER_LEN)
+    ? RECEIVER_TIP_ID + (RECEIVER_END_ID - RECEIVER_TIP_ID) * (z / RECEIVER_LEN)
+    : (z <= TRUNK_LENGTH)
+        ? 2 * (BORE_A * pow(z - RECEIVER_LEN + 1, BORE_N) + BORE_C)
+        : BELL_A * pow(z - TRUNK_LENGTH, 2)
+          + BELL_B * (z - TRUNK_LENGTH)
+          + BELL_C;
 
 function wall_at(z) =
     WALL_TRUNK + (WALL_BELL - WALL_TRUNK) * (z / TOTAL_LENGTH);
@@ -230,7 +248,6 @@ module taper_tube(z0, length, od0, od1) {
 //  Exception: section 18 large end = open bell mouth (no collar).
 //
 //  Assembly: insert male into female axially, twist ~30 degrees.
-//  O-ring groove on male shank provides airtight seal.
 
 module horn_section(n) {
     z0  = sec_z0(n);
@@ -298,16 +315,42 @@ module horn_section(n) {
             }
         }
 
+        // ---- BORE SUBTRACTION ----
+        // Section 1 has a KINK in the bore profile at z=RECEIVER_LEN (42mm)
+        // where the receiver ends (narrowing 16.7→12) and the trunk begins
+        // (expanding from 12). The bore subtraction must include z=42 as a
+        // frustum boundary so the receiver taper and trunk expansion are
+        // rendered as separate cones. Other sections have a smooth bore.
         translate([0, 0, -0.5])
         union() {
-            for (i = [0 : BORE_STEPS-1]) {
-                za = z0 + len * i       / BORE_STEPS;
-                zb = z0 + len * (i+1)   / BORE_STEPS;
-                ra = bore_id(za) / 2;
-                rb = bore_id(zb) / 2;
-                seg_len = len / BORE_STEPS;
-                translate([0, 0, i * seg_len])
-                cylinder(h = seg_len + 1, r1 = ra, r2 = rb, $fn = 128);
+            if (n == 1) {
+                // Section 1: receiver as one cone (z=0 to RECEIVER_LEN),
+                // then trunk as BORE_STEPS frustums (RECEIVER_LEN to len).
+                cylinder(h = RECEIVER_LEN + 0.5,
+                         r1 = RECEIVER_TIP_ID/2,
+                         r2 = RECEIVER_END_ID/2,
+                         $fn = 128);
+                trunk_len = len - RECEIVER_LEN;
+                for (i = [0 : BORE_STEPS-1]) {
+                    za = RECEIVER_LEN + trunk_len * i       / BORE_STEPS;
+                    zb = RECEIVER_LEN + trunk_len * (i+1)   / BORE_STEPS;
+                    ra = bore_id(za) / 2;
+                    rb = bore_id(zb) / 2;
+                    seg_len = trunk_len / BORE_STEPS;
+                    translate([0, 0, RECEIVER_LEN + i * seg_len + 0.5])
+                    cylinder(h = seg_len + 1, r1 = ra, r2 = rb, $fn = 128);
+                }
+            } else {
+                // Sections 2-19: smooth trunk/bell profile, regular subdivision
+                for (i = [0 : BORE_STEPS-1]) {
+                    za = z0 + len * i       / BORE_STEPS;
+                    zb = z0 + len * (i+1)   / BORE_STEPS;
+                    ra = bore_id(za) / 2;
+                    rb = bore_id(zb) / 2;
+                    seg_len = len / BORE_STEPS;
+                    translate([0, 0, i * seg_len])
+                    cylinder(h = seg_len + 1, r1 = ra, r2 = rb, $fn = 128);
+                }
             }
         }
 
@@ -328,7 +371,6 @@ module horn_section(n) {
 
             translate([0, 0, len])
             rotate([angle, 0, 0])
-            section_label(n=n, socket_r=od1/2 + BAYONET_CL);
 
             translate([0, 0, len])
             rotate([angle, 0, 0])
@@ -339,9 +381,10 @@ module horn_section(n) {
                      $fn=128);
         }
 
-        if (n > 1) {
-            oring_groove(od=od0, id=id0);
-        }
+        // Section number — recessed into outer body wall at the small end,
+        // between the lugs. Always visible before assembly; hidden inside
+        // the next section's collar after. Applied to ALL sections.
+        section_label(n=n, od0=od0);
     }
 }
 
@@ -386,33 +429,44 @@ module l_channels_only(od) {
 LUG_EMBED = 1.0;
 
 module male_lugs(od) {
-    lug_z_center = BAYONET_COLLAR - BAYONET_DEPTH;
+    // Each lug is a hull() of two cubes:
+    //  - Bottom cube: full tangential (W) and axial (T) size, but the OUTER
+    //    edge sticks out only 1mm past the body wall (instead of LUG_H=3.5mm).
+    //  - Top cube: full size — outer edge at the original LUG_H=3.5mm.
+    // The hull creates a smooth ramp on the bottom-outer corner of the lug,
+    // turning the 3.5mm unsupported overhang into a 1mm overhang plus a 45°
+    // printable slope. The lug's TOP portion still has full radial extent so
+    // it engages firmly with the female lock channel.
+    // The 1mm bottom overhang is safely bridgeable by FDM without supports.
+    lug_z_bottom = BAYONET_COLLAR - BAYONET_DEPTH - BAYONET_LUG_T/2;
+    lug_z_top    = BAYONET_COLLAR - BAYONET_DEPTH + BAYONET_LUG_T/2;
+    lug_chamfer  = 2.5;  // mm of chamfer height (= radial chamfer for 45° slope)
+    bottom_protrude = 1.0;  // mm the chamfered bottom edge sticks out past body
+
     for (i = [0 : BAYONET_LUGS-1]) {
         rotate([0, 0, i * (360/BAYONET_LUGS)])
-        translate([od/2 - LUG_EMBED, -BAYONET_LUG_W/2,
-                   lug_z_center - BAYONET_LUG_T/2])
-        cube([BAYONET_LUG_H + LUG_EMBED, BAYONET_LUG_W, BAYONET_LUG_T]);
+        hull() {
+            // Top cube: full lug at the top portion (engages lock channel)
+            translate([od/2 - LUG_EMBED, -BAYONET_LUG_W/2,
+                       lug_z_bottom + lug_chamfer])
+            cube([BAYONET_LUG_H + LUG_EMBED,
+                  BAYONET_LUG_W,
+                  BAYONET_LUG_T - lug_chamfer]);
+
+            // Bottom slab: smaller outer extent (only 1mm past body), thin axially
+            translate([od/2 - LUG_EMBED, -BAYONET_LUG_W/2,
+                       lug_z_bottom])
+            cube([LUG_EMBED + bottom_protrude,
+                  BAYONET_LUG_W,
+                  0.01]);
+        }
     }
 }
 
-// O-ring groove — subtractive. Cuts a circumferential channel into the
 // body's outer wall just behind the lugs.
-// O-ring groove position: just above the lugs, within the body's first
 // 20mm (the male collar region). Lugs at local z=[2.5, 7.5]; groove placed
 // at z=[10, 12.2] so it sits between the lugs and the rest of the body.
-ORING_Z = 10;
 
-module oring_groove(od, id) {
-    // Annular groove cut into the body's outer wall at z=ORING_Z.
-    // Built as a single rotate_extrude of a square profile to avoid the
-    // difference()-of-cylinders construction that produces near-degenerate
-    // boundaries when the outer cylinder edge sits 0.1mm beyond the body OD.
-    // The rotate_extrude produces a single connected torus-like ring directly.
-    translate([0, 0, ORING_Z])
-    rotate_extrude(angle=360, $fn=128)
-    translate([od/2 - ORING_DEPTH, 0])
-    square([ORING_DEPTH + 5, ORING_WIDTH]);
-}
 
 
 // ============================================================
@@ -422,17 +476,18 @@ module oring_groove(od, id) {
 //  the collar wall, leaving a legible recessed number.
 // ============================================================
 
-module section_label(n, socket_r) {
-    // Text is recessed into the inner socket wall, readable from inside
-    // (looking down the bore toward the collar before assembling).
-    // Orientation: characters stand upright (along world Z), mirrored so
-    // they read correctly when viewed from the bore axis looking outward.
-    // Extrusion goes radially outward (+X after positioning) into the wall.
+module section_label(n, od0) {
+    // Number recessed into the outer body wall at the small (male) end,
+    // between the lugs at 60°. Position origin just outside the body OD,
+    // then extrude radially INWARD so the text shape carves into the wall
+    // when subtracted. Characters run tangentially with height along +Z.
+    label_z = 18;  // mm, well above lug zone (lugs at z=2.5-7.5)
     rotate([0, 0, TEXT_ANGLE])
-    translate([socket_r, 0, BAYONET_COLLAR / 2])
-    rotate([0, 90, 0])
+    translate([od0/2 + TEXT_DEPTH, 0, label_z])
+    rotate([0, -90, 0])
+    rotate([0, 0, -90])
     mirror([1, 0, 0])
-    linear_extrude(height=TEXT_DEPTH)
+    linear_extrude(height=TEXT_DEPTH + 0.2)
     text(str(n),
          size=TEXT_SIZE,
          halign="center",

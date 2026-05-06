@@ -117,15 +117,6 @@ TEXT_ANGLE        = 60;     // deg angle around socket (between lug slots)
 // 15° from perpendicular, producing a nearly-horizontal overhang otherwise.
 COLLAR_CHAMFER    = 5.0;    // mm  chamfer height/width (45° bevel)
 
-// Inner print-ramp inside the body's bore at the top of each section.
-// Widens the bore from its natural radius up to socket_r over PRINT_RAMP_H
-// mm before the joint plane, producing a 45° internal slope. This makes the
-// section printable collar-down on FDM (the body wall would otherwise sit
-// over an empty socket cavity with a 7-8mm unsupported overhang). The
-// widened region is filled by the male collar of the next section when
-// assembled, so it has no acoustic or mechanical effect on the joint.
-PRINT_RAMP_H      = 7.0;    // mm  ramp height (gives ~45° slope)
-PRINT_RAMP_WALL   = 1.0;    // mm  minimum wall thickness at top of ramp
 
 // ============================================================
 //  BORE PROFILE FUNCTIONS
@@ -375,29 +366,6 @@ module horn_section(n) {
         }
 
 
-        // ---- INNER PRINT-RAMP AT TOP OF BODY ----
-        // When a section is printed alone with the female collar at the
-        // bottom (collar-down orientation), the body wall just above the
-        // joint plane sits over the empty socket cavity below. The body's
-        // inner wall is at radius bore_r (small) but the collar's inner
-        // wall just below was at radius socket_r (large). That 7-8mm
-        // radial step creates an inward overhang the FDM printer can't
-        // bridge.
-        //
-        // Fix: subtract an internal frustum that widens the bore from
-        // bore_r to socket_r over the last PRINT_RAMP_H mm of body, giving
-        // a 45° inner slope. The widened region is INSIDE what becomes the
-        // joint when assembled — it's covered by the male collar of the
-        // next section — so it's acoustically and mechanically irrelevant.
-        // But during printing alone, it gives the printer a 45° inner slope
-        // rather than a cliff.
-        if (has_female) {
-            translate([0, 0, len - PRINT_RAMP_H])
-            cylinder(h = PRINT_RAMP_H + 0.01,
-                     r1 = bore_id(z1 - PRINT_RAMP_H) / 2,
-                     r2 = od1/2 - PRINT_RAMP_WALL,
-                     $fn = 128);
-        }
 
         // ---- BORE EXTENSION FOR CURVE SECTIONS ----
         if (angle != 0) {
@@ -546,6 +514,7 @@ module section_label(n, od0) {
     translate([od0/2 + TEXT_DEPTH, 0, label_z])
     rotate([0, -90, 0])
     rotate([0, 0, -90])
+    mirror([1, 0, 0])
     linear_extrude(height=TEXT_DEPTH + 0.2)
     text(str(n),
          size=TEXT_SIZE,

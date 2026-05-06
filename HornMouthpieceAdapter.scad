@@ -1,7 +1,7 @@
 fillet = 1;
 
 module rounded_cyl(h, r, f=fillet) {
-    rotate_extrude($fn=128)
+    rotate_extrude($fn=12)
         offset(r=f, $fn=32)
             offset(r=-f)
                 square([r, h]);
