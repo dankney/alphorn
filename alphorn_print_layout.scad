@@ -287,15 +287,22 @@ module horn_section(n) {
                     [0,            0         ]
                 ]);
             } else {
+                // CURVE SECTION: flare reaches collar_or at z = len -
+                // collar_or*tan(angle) so the body's outer corner on
+                // the low side coincides with the collar's bottom rim.
+                // See alphorn.scad for full geometry rationale.
+                flare_top_z_c = len - collar_or * tan(angle);
+                body_h_c      = flare_top_z_c - flare_h;
+                od_at_flare_c = od0 + (od1 - od0) * (body_h_c / len);
                 intersection() {
                     rotate_extrude(angle=360, $fn=128)
                     polygon(points=[
-                        [od0/2,        0              ],
-                        [od_at_flare/2, body_h        ],
-                        [collar_or,    len             ],
-                        [collar_or,    len + max_overhang],
-                        [0,            len + max_overhang],
-                        [0,            0              ]
+                        [od0/2,           0                 ],
+                        [od_at_flare_c/2, body_h_c          ],
+                        [collar_or,       flare_top_z_c     ],
+                        [collar_or,       len + max_overhang],
+                        [0,               len + max_overhang],
+                        [0,               0                 ]
                     ]);
                     translate([0, 0, len])
                     rotate([angle, 0, 0])
@@ -306,7 +313,7 @@ module horn_section(n) {
                     translate([0, 0, len])
                     rotate([angle, 0, 0])
                     translate([0, 0, -0.5])
-                    cylinder(h=collar_h + 0.5, r=collar_or, $fn=128);
+                    cylinder(h = collar_h + 0.5, r = collar_or, $fn = 128);
                 }
             }
 

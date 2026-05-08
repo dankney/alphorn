@@ -287,22 +287,38 @@ module horn_section(n) {
                     [0,            0         ]
                 ]);
             } else {
-                // CURVE SECTION: body+flare as single rotate_extrude,
-                // clipped at the tilted plane, then tilted collar added
-                // with 0.5mm overlap. The body+flare is one solid, so
-                // only the collar junction can produce a disconnection —
-                // but the collar overlaps the body at the full collar_or
-                // radius over 0.5mm depth, which is a much larger overlap
-                // than a thin face and reliably merges.
+                // CURVE SECTION: body+flare clipped at tilted plane.
+                //
+                // The polygon's flare reaches collar_or at z = len -
+                // collar_or*tan(angle), NOT at z = len. This is the z
+                // where the tilted clip plane on the LOW side intersects
+                // the body cylinder at radius collar_or. By placing the
+                // flare's top vertex there, the body's outer corner on
+                // the low side coincides (within ~0.03mm) with the
+                // collar's bottom rim — eliminating the body-to-collar
+                // ledge.
+                //
+                // Above z = len - collar_or*tan(angle), the polygon is
+                // at constant radius collar_or up to len+max_overhang;
+                // the tilted clip then carves the joint plane, producing
+                // a smooth body-to-collar transition on every side:
+                //   - LOW side: body corner meets collar rim, no step.
+                //   - X-axis sides: body wall at collar_or transitions
+                //     directly into collar wall (also at collar_or).
+                //   - HIGH side: body wall at collar_or extends up
+                //     under the collar; collar wall takes over above.
+                flare_top_z_c = len - collar_or * tan(angle);
+                body_h_c      = flare_top_z_c - flare_h;
+                od_at_flare_c = od0 + (od1 - od0) * (body_h_c / len);
                 intersection() {
                     rotate_extrude(angle=360, $fn=128)
                     polygon(points=[
-                        [od0/2,        0              ],
-                        [od_at_flare/2, body_h        ],
-                        [collar_or,    len             ],
-                        [collar_or,    len + max_overhang],
-                        [0,            len + max_overhang],
-                        [0,            0              ]
+                        [od0/2,           0                 ],
+                        [od_at_flare_c/2, body_h_c          ],
+                        [collar_or,       flare_top_z_c     ],
+                        [collar_or,       len + max_overhang],
+                        [0,               len + max_overhang],
+                        [0,               0                 ]
                     ]);
                     // Tilted half-space to clip the body at the joint plane
                     translate([0, 0, len])
@@ -310,13 +326,14 @@ module horn_section(n) {
                     translate([0, 0, -2000])
                     cylinder(h=2000, r=collar_or + 100, $fn=8);
                 }
-                // Tilted collar — separate solid, overlaps body by 0.5mm
+                // Tilted collar — separate solid, 0.5mm overlap for manifold safety
                 if (has_female) {
                     translate([0, 0, len])
                     rotate([angle, 0, 0])
                     translate([0, 0, -0.5])
-                    cylinder(h=collar_h + 0.5, r=collar_or, $fn=128);
+                    cylinder(h = collar_h + 0.5, r = collar_or, $fn = 128);
                 }
+            }
             }
 
             // Male lugs — embedded 1mm into body wall
