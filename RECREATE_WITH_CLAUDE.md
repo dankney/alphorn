@@ -101,6 +101,23 @@ These prompts may be needed depending on what surfaces. Apply only as relevant:
 
 > The bottom face of each male lug at z=2.5 has a 3.5mm radial overhang past the body wall — too wide for FDM bridging. Rebuild each lug as a `hull()` of two pieces: a top cube with the original full radial extent (engages with the lock channel), and a thin bottom slab that protrudes only 1mm past the body wall. The hull creates a 45° printable ramp on the outer-bottom corner of each lug. The top portion still has full extent so it engages firmly with the female lock channel — the chamfered bottom region just doesn't engage with the channel walls (which is fine, since locking happens at the lug's top face).
 
+### Prompt 13b — Curve-section body-to-collar overhang (the "low side ledge")
+
+> On curve sections (16-18), the standard body polygon flares from `od_at_flare/2` at z=`body_h` up to `collar_or` at z=`len`, then continues at constant `collar_or` to z=`len + max_overhang`. The whole polygon is then clipped at the tilted joint plane (`z = len + y·tan(angle)`). On the LOW side of the tilted plane, this clip cuts the body well before the flare reaches `collar_or`, leaving the body wall ending at a smaller radius than the collar's bottom rim — which sits 2-6mm outboard. The visible result is a sharp 85°+ overhang where the slicer has to bridge from body wall outline to collar wall outline within a single layer. Slicer's overhang detector flags it as severe, and the rim arches print with stringy/sagging layers.
+>
+> The fix is geometric, not additive: move the flare's top vertex from `(collar_or, len)` to `(collar_or, len - collar_or × tan(angle))`. That z is the exact height where the tilted clip plane on the low side would intersect the body cylinder at radius `collar_or`. With the new vertex, the body's outer corner on the low side coincides (within ~0.03mm) with the collar's bottom rim. Above that vertex, the polygon stays at constant `collar_or` up to `len + max_overhang`, so the tilted clip carves a clean joint plane that runs straight into the collar at every angle around the section.
+>
+> Compute the new flare bottom vertex consistently:
+> ```scad
+> flare_top_z_c = len - collar_or * tan(angle);
+> body_h_c     = flare_top_z_c - flare_h;
+> od_at_flare_c = od0 + (od1 - od0) * (body_h_c / len);
+> ```
+> Use these in the polygon for curve sections only — straight sections (`angle == 0`) are unchanged because `tan(0) = 0`, which collapses `flare_top_z_c` back to `len`. Worst-case layer-by-layer overhangs along the body-to-collar transition drop from 85°+ to under 25° from vertical, which is well within FDM bridging limits and stops the slicer from flagging the joint.
+>
+> Important things NOT to do, even though they look reasonable in isolation: do **not** add a tilted "flange" or downward extension of the collar to fill the ledge. A tilted addition has its bottom edge at a different world z at every angle, so the bottom edge dips low on the LOW side where the body is narrow — the flange's bottom edge then sticks 2-6mm outboard of the body wall there, recreating the same severe overhang one layer below where it started. Any solution that tries to bridge the ledge with material added OUTSIDE the body's existing rotate-extruded polygon will hit this trap. The fix has to be in the polygon itself.
+
+
 ## Phase 5: Mesh integrity (critical iteration)
 
 The original session encountered persistent disconnected-mesh problems that took many iterations to fully resolve. The OpenSCAD preview will show one piece, but the STL export can have disconnected shells. **Always slice the STL in Orca and check** — don't trust the preview.
@@ -225,6 +242,8 @@ Things the original session tried that turned out to be wrong. Don't repeat thes
 **The receiver bore profile has a kink at z=42mm.** The default 8-step bore subdivision linearly interpolates across this kink and produces ~0.7mm error in the rendered bore at the kink. Section 1 needs special handling: separate the receiver subtraction from the trunk subdivision, with z=42 as the boundary.
 
 **Lug bottoms have a 3.5mm overhang.** Unless the lugs are chamfered with a `hull()` of two cubes (small bottom slab + full top), the printer drools layers across this overhang and the lugs print rough. The chamfer reduces the overhang to 1mm without compromising the lock engagement at the lug top.
+
+**The curve sections' body-to-collar transition is fixed in the polygon, not by adding a flange.** It's tempting to "patch" the body-to-collar ledge on the low side of curve sections by adding a separate flange or extending the collar downward. Every additive approach fails the same way: any tilted piece has its bottom edge at varying world z, dipping low on the LOW side where the body is narrow, so the bottom edge protrudes 2-6mm outboard of the body wall there and just relocates the severe overhang. The right fix is to move the body polygon's flare-top vertex to z = `len − collar_or × tan(angle)` so the body itself reaches `collar_or` at the lowest point of the tilted joint plane. The body's outer corner then coincides with the collar's bottom rim within 0.03mm and the overhang vanishes.
 
 **Mirror text or it reads backwards.** Recessing text into a curved surface from outside, the natural orientation makes the text read mirrored when viewed from outside. Add a `mirror([1, 0, 0])` before linear_extrude to flip it. This was discovered after the first complete print attempt — the digits were perfectly legible but reversed.
 

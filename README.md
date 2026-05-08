@@ -14,7 +14,7 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 | **Sections** | 19 (15 straight trunk + 3 curve + 1 bell mouth) |
 | **Section length** | 204.2mm (max print height 247.7mm) |
 | **Curve** | 45° upward bend (3 × 15° at the last three joints) |
-| **Joint type** | Rectangular 3-lug bayonet twist-lock with O-ring seal |
+| **Joint type** | Rectangular 3-lug bayonet twist-lock; sealed by friction + optional PTFE tape |
 | **Wall thickness** | 7mm (trunk) → 8mm (bell), linearly interpolated |
 
 ## What's in this repository
@@ -30,7 +30,7 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 
 - **Printer:** Bambu Lab X1C (or any FDM with ≥256mm build height)
 - **Filament:** PLA wood (or any rigid PLA / PETG)
-- **18 × O-rings, 2mm cross-section** — see [O-Ring Sizing](#o-ring-sizing) below
+- **PTFE plumbers' tape** (optional, only if a joint develops a leak after assembly)
 - **A mouthpiece** — not included in the print. Use either:
   - A commercial alphorn mouthpiece (Stocker, Eggerstorfer, etc.) with shank tip OD ≈ 12mm
   - The Talbot 20mm 3D-printed mouthpiece STL from [argobuilder.com](https://www.argobuilder.com/3d-printed-alphorn.html) — note: scale that STL to **10%** in the slicer
@@ -46,14 +46,13 @@ Verify after printing:
 1. Lugs slide cleanly through axial slots
 2. Quarter-turn locks the joint with a tactile stop
 3. Joint is snug, not loose
-4. O-ring groove holds a 2mm O-ring
-5. Joint is airtight when O-ring is fitted
+4. Joint stays together when held vertically; halves don't pull apart under their own weight
 
 If the lugs are too tight or too loose, adjust `BAYONET_CL` in the constants block.
 
 ### 2. Print orientation
 
-All sections print **vertically**, small end (mouthpiece-side) **down**. This gives the cleanest bore surface, best layer adhesion along the air column, and requires no supports for sections 1-15. Sections 16-18 have an angled female face at the top — check your slicer's overhang preview; partial supports may be needed at the rim.
+All sections print **vertically**, small end (mouthpiece-side) **down**. This gives the cleanest bore surface, best layer adhesion along the air column, and requires no supports for sections 1-15. Sections 16-18 have an angled female face at the top — the body's flare is positioned to meet the collar's bottom rim cleanly on the low side of each tilted joint, so layer-by-layer overhangs along the body-to-collar transition stay below 25° from vertical (well within FDM bridging limits). The chamfer at the collar's open rim is the only feature on these sections that benefits from supports, and only at the rim itself; the slicer's automatic-support setting handles it.
 
 ### 3. Suggested batching plan (X1C plates)
 
@@ -80,7 +79,7 @@ All sections print **vertically**, small end (mouthpiece-side) **down**. This gi
 | Wall loops | 4 minimum |
 | Infill (sections 1-15) | 20% |
 | Infill (sections 16-19, bell) | 15% |
-| Supports | None for 1-15; partial for 16-18 angled rim |
+| Supports | None for 1-15; auto-supports at collar rim for 16-18 |
 | Bed adhesion | Brim recommended for tall sections |
 
 ### 5. Workflow
@@ -98,29 +97,13 @@ Or open `alphorn_print_layout.scad` to see all 19 sections laid out at once for 
 
 Each joint between adjacent sections N and N+1 works as follows:
 
-1. **Section N+1's male end** has 3 rectangular lugs at 120° spacing protruding radially, plus an O-ring groove just behind the lugs
+1. **Section N+1's male end** has 3 rectangular lugs at 120° spacing protruding radially from the body wall just behind the open end
 2. **Section N's female end** has a collar with three L-shaped slots cut into the inner socket — an axial entry channel and a tangential locking groove
-3. **To assemble:** seat an O-ring in the groove on N+1's male end. Align the lugs with the slots in N's female collar, push N+1 in until the lugs bottom out, then twist about 30° to lock the lugs into the tangential lock channels. The O-ring compresses between the male body and the female socket wall, sealing the joint airtight.
+3. **To assemble:** align the lugs on N+1 with the entry slots in N's collar, push N+1 in until the lugs bottom out, then twist about 30° to lock the lugs into the tangential lock channels. The PLA-on-PLA fit at the bayonet seals the joint by friction. If a particular joint develops a leak under playing pressure, wrap a single layer of PTFE plumbers' tape around the male shank before assembly.
 
-Section numbers are recessed into each female collar's inner wall — visible when looking down into the open collar before assembly, hidden by the male collar of the next section once joined.
+Section numbers are recessed into the outer body wall at the small (male) end of each section, between the lugs — visible from outside before assembly, hidden behind the previous section's collar once joined.
 
-### O-Ring Sizing
-
-You'll need 18 O-rings, all with 2mm cross-section, sized to stretch snugly over the male shank groove of each section. Inner diameters:
-
-| Joint | O-ring ID | Joint | O-ring ID |
-|---|---|---|---|
-| 1–2 | 24.07mm | 10–11 | 65.01mm |
-| 2–3 | 26.64mm | 11–12 | 71.38mm |
-| 3–4 | 29.89mm | 12–13 | 78.04mm |
-| 4–5 | 33.69mm | 13–14 | 84.96mm |
-| 5–6 | 37.96mm | 14–15 | 92.14mm |
-| 6–7 | 42.65mm | 15–16 | 99.57mm |
-| 7–8 | 47.73mm | 16–17 | 110.17mm |
-| 8–9 | 53.17mm | 17–18 | 132.93mm |
-| 9–10 | 58.93mm | 18–19 | 168.60mm |
-
-These are sized 0.5mm undersized to stretch tightly around the shank.
+For curve sections (16-18), the female collar is tilted 15° from perpendicular. The body's outer flare is shaped so the body wall reaches `collar_or` at the lowest point of the tilted joint plane (z = `len - collar_or × tan(15°)`), which makes the body's outer corner meet the collar's bottom rim within ~0.03mm on the low side of the bend. The result is a smooth body-to-collar transition all the way around the joint without an exposed ledge or unsupported overhang.
 
 ## Mouthpiece
 
@@ -133,12 +116,13 @@ Sources:
 
 ## Acoustic design
 
-The bore follows a two-part profile from Talbot's reference drawings:
+The bore follows a three-region profile from Talbot's reference drawings, expressed as the bore inner diameter at any axial position z:
 
-- **Trunk (z=0 to 3140mm):** power law `r(z) = 0.000250 × (z+1)^1.4849 + 6.9997`
-- **Bell (z=3140 to 3880mm):** quadratic `ID(s) = 0.00015474 s² + 0.036846 s + 92.0` where `s = z − 3140`, C¹-continuous with the trunk slope at the junction
+- **Receiver (z=0 to 42mm):** linear taper from 16.7mm at the mouthpiece end down to 12.0mm at the receiver/trunk junction
+- **Trunk (z=42 to 3140mm):** power law `bore_id(z) = 2 × (0.00026179 × (z − 41)^1.4849 + 5.9997)`
+- **Bell (z=3140 to 3880mm):** quadratic `bore_id(z) = 0.00015273 × s² + 0.03833307 × s + 92.0` where `s = z − 3140`, C¹-continuous with the trunk slope at the junction
 
-Each section's bore is subtracted as 8 stepped frustums following this profile, with maximum approximation error of 0.028mm. The bore is preserved at its acoustic profile right up to each joint plane — no internal flaring, no abrupt steps. The joint's mechanical clearance happens entirely above z=len in the female socket region, which is filled by the next section's male collar when assembled.
+Each section's bore is subtracted as 8 stepped frustums following this profile, with maximum approximation error of 0.028mm. The bore is preserved at its acoustic profile right up to each joint plane — no internal flaring, no abrupt steps. The joint's mechanical clearance happens entirely above z=len in the female socket region, which is filled by the next section's male shank when assembled.
 
 At 25°C effective playing temperature with end correction of 0.061m at the bell:
 

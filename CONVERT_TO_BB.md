@@ -81,6 +81,8 @@ Because the receiver geometry is unchanged, **the same mouthpiece works on both 
 
 Bayonet dimensions (`BAYONET_LUG_H`, `BAYONET_LUG_W`, `BAYONET_LUG_T`, `BAYONET_COLLAR`, `BAYONET_CL`) stay the same. The joint is sized for mechanical strength and printability, not pitch. PTFE plumbers' tape (if needed at all) works the same way on either horn.
 
+The curve sections' body-to-collar flare geometry — where the body's outer flare reaches `collar_or` at z = `len − collar_or × tan(angle)` so the body's outer corner coincides with the collar's bottom rim on the low side of each tilted joint — is computed per-section from `collar_or` (which depends on the section's own bore) and `angle` (which is the per-joint curve angle, unchanged at 15°). It auto-adjusts for the smaller `collar_or` values of the Bb horn's curve sections without any code changes. Spot-check after conversion that `body_h_c = flare_top_z_c − flare_h` remains positive for the curve sections; for typical alphorn proportions across pitches from C through Eb, this is comfortably the case.
+
 ## Implementation steps
 
 1. Edit `alphorn.scad` with the parameter changes above
