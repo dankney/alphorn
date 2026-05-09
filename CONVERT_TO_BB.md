@@ -2,6 +2,8 @@
 
 This document describes the parameter changes needed to generate a Bb alphorn from this design, keeping the leadpipe and mouthpiece receiver unchanged so the same mouthpiece works on either instrument.
 
+> **If you just want to print the Bb horn**, use the pre-built `Bb_alphorn.scad` and `Bb_alphorn_print_layout.scad` files in this repository — the parameter changes below have already been applied. The rest of this document explains *why* those files have the values they do, and how to convert to other pitches.
+
 ## Overview
 
 The Bb alphorn is approximately 25% shorter than the F alphorn because Bb2 (116.54 Hz) is a perfect fourth above F2 (87.31 Hz). For an open conical/expanding pipe, the playing pitch is inversely proportional to the acoustic length, so a higher pitch requires a shorter horn.
@@ -28,7 +30,11 @@ Replace the existing constants with these values:
 ```scad
 TOTAL_LENGTH      = 2935;       // mm (was 3880)
 TRUNK_LENGTH      = 2378;       // mm (was 3140) — where bell starts
-NUM_SECTIONS      = 13;         // (was 19) — fewer sections needed
+NUM_SECTIONS      = 14;         // (was 19) — fewer sections needed,
+                                //   chosen so the worst curve section
+                                //   stays inside the X1C 256mm build
+                                //   height (NUM_SECTIONS=13 would put
+                                //   sections 10-12 above 256mm)
 
 // Receiver — UNCHANGED
 RECEIVER_LEN      = 42;         // mm
@@ -50,13 +56,15 @@ Other constants (wall thickness, bayonet dimensions, clearances) stay the same. 
 
 ## Sections
 
-The Bb horn fits comfortably in 13 sections instead of 19. Each section is 225.8mm long, with the worst-case curve section reaching 238.6mm in print height — well within the X1C's 256mm build envelope.
+The Bb horn uses 14 sections of 209.6mm each. The print height of the worst-case section (section 13, the last curve section) reaches 246.7mm — comfortably inside the X1C's 256mm build envelope and roughly the same margin as the F horn's worst case (247.7mm).
+
+A naive `2935 / 13 ≈ 226mm` per-section calculation would seem to fit the X1C too, but it actually doesn't: the curve sections (with their tilted collars) gain `collar_or × sin(15°) + collar_h × cos(15°)` ≈ 37mm of extra height on top of the section length, and at 13 sections, sections 10-12 land between 257 and 262mm. NUM_SECTIONS = 14 is the smallest count that fits all curve sections under 256mm.
 
 | | F horn | Bb horn |
 |---|---|---|
-| Sections | 19 | 13 |
-| Section length | 204.2mm | 225.8mm |
-| Worst-case section height | 247.7mm | 238.6mm |
+| Sections | 19 | 14 |
+| Section length | 204.2mm | 209.6mm |
+| Worst-case section height | 247.7mm | 246.7mm |
 | Curve placement | Last 3 joints (15° each) | Last 3 joints (15° each) |
 | Total bend | 45° | 45° |
 
@@ -85,12 +93,12 @@ The curve sections' body-to-collar flare geometry — where the body's outer fla
 
 ## Implementation steps
 
-1. Edit `alphorn.scad` with the parameter changes above
+1. Edit `alphorn.scad` with the parameter changes above (or start from the prebuilt `Bb_alphorn.scad` if you have it)
 2. Re-render the assembly preview to verify the curve and overall proportions look right
 3. Run the acoustic verification (Phase 9 prompt 23 in `RECREATE_WITH_CLAUDE.md`) — predicted 2nd harmonic should be ~116 Hz
 4. Regenerate `alphorn_print_layout.scad` from scratch — the layout was generated for 19 sections and the section count, length, and OD profile all change for Bb
-5. Print a fresh joint test piece. The joint geometry is unchanged so the existing test print should still validate, but the dimensions sample at mid-section (section 7/8 boundary in the 13-section design)
-6. Print all 13 sections per the new batching plan
+5. Print a fresh joint test piece. The joint geometry is unchanged so the existing F-horn test print still validates the fit; the dimensions sample at mid-section (around the section 7/8 boundary in the 14-section design)
+6. Print all 14 sections per the new batching plan
 
 ## Bore profile reference points (Bb horn)
 
@@ -100,12 +108,12 @@ For verification or comparison:
 |---|---|---|
 | 0 | Receiver tip | 16.70 |
 | 42 | Receiver / trunk junction | 12.00 |
-| 500 | Trunk | 17.49 |
+| 500 | Trunk | 17.12 |
 | 1000 | Trunk | 27.28 |
-| 1500 | Trunk | 39.18 |
-| 2000 | Trunk | 53.07 |
+| 1500 | Trunk | 40.50 |
+| 2000 | Trunk | 56.14 |
 | 2378 | Trunk / bell junction | 69.36 |
-| 2700 | Bell | 102.51 |
+| 2700 | Bell | 102.53 |
 | 2935 | Bell mouth | 153.80 |
 
 ## Other pitches
