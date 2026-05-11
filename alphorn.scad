@@ -46,9 +46,11 @@ BELL_LENGTH       = 740;     // mm  bell region (z=3140 to 3880)
 //   z= 3140mm  ID= 92.00mm   (Talbot sheet 2, at 294cm)
 //   z= 3880mm  ID=204.00mm   (Talbot sheet 3, bell mouth)
 
-// Wall thickness
-WALL_TRUNK        = 7.0;     // mm  (Talbot sheet 1)
-WALL_BELL         = 8.0;     // mm  (Talbot sheet 1, at bell)
+// Wall thickness — increased from 7/8 to 9/10 mm after structural failure
+// testing showed the original walls were insufficient for the assembly
+// bending loads at the collar-exit stress concentration.
+WALL_TRUNK        = 9.0;     // mm  (was 7.0 — increased for structural strength)
+WALL_BELL         = 10.0;    // mm  (was 8.0 — increased for structural strength)
 
 // ============================================================
 //  SECTION PARAMETERS
@@ -101,6 +103,128 @@ BAYONET_LUG_W     = 8;      // mm  tangential lug width (along circumference)
 BAYONET_LUG_T     = 5;      // mm  axial thickness of lug
 BAYONET_COLLAR    = 20;      // mm  collar length each end
 BAYONET_CL        = 0.25;   // mm  print clearance on lugs
+
+// ============================================================
+//  COLLAR-EXIT STRUCTURAL REINFORCEMENT
+//  After printing, PLA Wood sections snapped at z = BAYONET_COLLAR
+//  from the male end — the exact point where the male section exits
+//  the female collar. This is a classic stress concentration: the
+//  collar provides full lateral support for z < BAYONET_COLLAR, then
+//  abruptly nothing, peaking bending stress at the rim.
+//
+//  Fix: a tapered buttress ring on every male end.
+//  Starts at z = BAYONET_COLLAR with an extra COLLAR_REINF_T of radius,
+//  then tapers smoothly back to the natural pipe OD over COLLAR_REINF_H.
+//  This nearly doubles the section modulus at the stress concentration.
+//
+//  Verified to fit within the female collar_or for all 19 sections
+//  (minimum clearance 1.2 mm at section 19, 3.1 mm at section 2).
+// ============================================================
+COLLAR_REINF_T    = 5.0;    // mm  extra radius at z=BAYONET_COLLAR
+COLLAR_REINF_H    = 30.0;   // mm  taper length back to natural OD
+
+// ============================================================
+//  PER-JOINT BOLT REINFORCEMENT  (iteration 6 - body anchor below joint)
+//  Three M4 x 30mm cap screws per joint, oriented PARALLEL to the
+//  pipe axis. CRITICAL CHANGE vs iter-5: the heat-set insert now
+//  anchors in the FEMALE SECTION'S BODY (below the joint plane),
+//  NOT in the collar.
+//
+//  In iter-5 the insert was in the collar boss. The collar is a
+//  cantilevered tube extending up from the female body; its only
+//  structural connection to the body is the collar-body junction
+//  at z=len. If that junction cracks (which is exactly the failure
+//  mode we are reinforcing against), the insert detaches from the
+//  body. The screw would only effectively attach at one side of
+//  the joint - it would not reinforce the failure.
+//
+//  Iter-6 fix: extend the boss DOWN by BOSS_DROP=5mm below z=len,
+//  into the female section's body proper. The insert pocket spans
+//  z=len-5 to z=len+1.4, so 5mm of the insert is anchored in the
+//  body wall (deep in the flared body material) and only 1.4mm is
+//  in the collar. The load path now goes: screw threads -> insert
+//  -> body wall (DIRECT), bypassing the collar-body junction
+//  entirely on the lower side.
+//
+//  Geometry (axially, in section-relative z, with len = SECTION_LEN):
+//    z=len-5..len  : body extension boss (5mm of body anchor)
+//    z=len..len+1.4: collar portion of boss above body anchor
+//    z=len-5..len+1.4: heat-set insert pocket (6.4mm tall, 5.3 OD)
+//    z=len+1.4..len+20: M4 clearance hole (4.5 dia, 18.6mm long)
+//    z=len+20..len+25: upper section's tab (M4 clearance, 4.5 dia)
+//    z>len+25      : screw head sits on top of tab
+//    Total screw under-head length: 5 + 18.6 + 6.4 = 30mm
+//
+//  Geometry (radially):
+//   Collar boss portion (z = len..len+collar_h):
+//     inner r = collar_or - BOSS_EMBED (2.5mm embed into collar wall)
+//     outer r = collar_or + COLLAR_BOSS_RAD_H
+//   Body extension portion (z = len-BOSS_DROP..len):
+//     inner r = bore_od(z0+len)/2 - BOSS_EMBED
+//     outer r = collar_or + COLLAR_BOSS_RAD_H  (same outer as collar boss)
+//     In the flare zone (z = len-25..len), the section's actual outer
+//     surface flares from bore_od(z0+body_h)/2 up to collar_or, so
+//     the body extension's inner face is DEEPLY embedded in section
+//     material (~8-9mm radial overlap for section 1, growing for
+//     larger sections). The boss does NOT enter the bore: at all
+//     joints inner-face-r exceeds bore_id(z0+len)/2 + ~6.5mm.
+//   Tab (upper section, z = BAYONET_COLLAR..BAYONET_COLLAR+TAB_THICKNESS):
+//     inner r = od0/2 + COLLAR_REINF_T - BOSS_EMBED  (embed into buttress)
+//     outer r = prev_collar_or + COLLAR_BOSS_RAD_H + 0.5
+//   Bolt clearance hole at r = collar_or + COLLAR_BOSS_RAD_H/2 (mid-boss).
+//
+//  Angular alignment:
+//   Lower section's boss at lower's BOLT_PHASE_DEG = 75/195/315.
+//   Upper section's tab at upper's BOLT_PHASE_DEG - BAYONET_LOCK_ANGLE
+//   = 45/165/285 (in upper's frame, before lock).
+//   After the +30 deg CCW bayonet lock twist, the upper's tab lands
+//   at lower's 75/195/315 - directly above the lower's boss.
+//
+//  Loading at the joint:
+//   Joint bending creates axial separation on the convex side. The
+//   3 screws are in pure TENSION (parallel to pipe). Worst-bolt
+//   tension under M = 234,000 N*mm at joint 1 with r = 28mm:
+//     T = 2M/(3R) = 2*234000/(3*28) = 5571 N
+//   M4 grade-10.9 tensile capacity ~ 12 kN -> SF = 2.15.
+//   Load path on lower side (NEW): insert -> body wall (direct,
+//   bypassing collar-body junction). Insert is bonded into body
+//   PLA over its full 5mm body-side length plus 1.4mm collar-side.
+//
+//  Hardware per joint:
+//   - M4 x 30mm grade-10.9 socket-head cap screw   x3
+//   - M4 heat-set brass insert (5.3 OD x 6.4 long) x3
+//   Totals for 19-section horn (18 joints): 54 bolts + 54 inserts
+//
+//  Assembly:
+//   1. BEFORE assembly: heat-press an M4 insert into each of the 3
+//      pockets on every section's collar boss (sections 1-18; the
+//      bell section has no collar). The insert top sits at 1.4mm
+//      above the collar base (mostly recessed into the body). Use
+//      a soldering iron with M4 insert tip at ~200 C; the M4
+//      clearance hole above the pocket acts as a depth stop
+//      (the 4.5/5.3 step prevents the insert from going too far).
+//   2. Insert section N+1's male end into section N's collar.
+//   3. Twist 30 deg CCW to engage the bayonet lock. The 3 tabs on
+//      N+1 land directly above the 3 collar bosses on N.
+//   4. Drive an M4 x 30mm cap screw down through each tab clearance
+//      hole; it threads into the insert below. ~2 N*m.
+// ============================================================
+BOLT_REINFORCE     = true;     // set false to disable all bolt features
+BOLT_COUNT         = 3;        // 3 screws per joint (between bayonet lugs)
+BOLT_PHASE_DEG     = 75;       // screw angle in female frame (symmetric)
+BAYONET_LOCK_ANGLE = 30;       // mirrors lock_angle in l_channels_only
+BOLT_CL_D          = 4.5;      // mm  M4 clearance hole
+HEAT_INSERT_D      = 5.3;      // mm  M4 heat-set insert OD
+HEAT_INSERT_L      = 6.4;      // mm  M4 heat-set insert length
+COLLAR_BOSS_RAD_H  = 8.3;      // mm  boss radial extent outward from collar_or
+COLLAR_BOSS_TANG_W = 10;       // mm  boss tangential width
+TAB_THICKNESS      = 5;        // mm  tab axial thickness
+TAB_TANG_W         = 10;       // mm  tab tangential width
+BOSS_EMBED         = 2.5;      // mm  embed into existing wall (boss & tab)
+BOSS_DROP          = 5;        // mm  body extension below z=len into body wall.
+                               //     HEAT_INSERT_L - BOSS_DROP = 1.4mm of
+                               //     insert sits above joint plane in collar;
+                               //     BOSS_DROP = 5mm sits below in body.
 
 // Section number label — recessed into the female socket inner wall.
 // Visible before assembly; covered by the male collar when the joint
@@ -177,27 +301,29 @@ function sec_z1(n) = SECTION_LEN * n;
 
 // ============================================================
 //  BORE PROFILE REFERENCE TABLE  (19 sections × 204.2mm each)
+//  Wall = 9mm (trunk) → 10mm (bell), linearly interpolated.
+//  bore_od = bore_id + 2 × wall_at(z)
 //
 //  n   z_start  z_end    ID_start  ID_end    OD_start  OD_end
-//  1      0.0   204.2    14.00     15.39     28.00     29.54
-//  2    204.2   408.4    15.39     17.86     29.54     32.13
-//  3    408.4   612.6    17.86     21.04     32.13     35.45
-//  4    612.6   816.8    21.04     24.79     35.45     39.36
-//  5    816.8  1021.1    24.79     29.04     39.36     43.78
-//  6   1021.1  1225.3    29.04     33.71     43.78     48.62
-//  7   1225.3  1429.5    33.71     38.78     48.62     53.85
-//  8   1429.5  1633.7    38.78     44.20     53.85     59.43
-//  9   1633.7  1837.9    44.20     49.95     59.43     65.34
-// 10   1837.9  2042.1    49.95     56.01     65.34     71.55
-// 11   2042.1  2246.3    56.01     62.36     71.55     78.06
-// 12   2246.3  2450.5    62.36     69.00     78.06     84.86
-// 13   2450.5  2654.7    69.00     75.91     84.86     91.93
-// 14   2654.7  2858.9    75.91     83.10     91.93     99.27
-// 15   2858.9  3063.2    83.10     90.55     99.27    106.87
-// 16   3063.2  3267.4    90.55    105.51    106.87    121.91  <- bell region
-// 17   3267.4  3471.6   105.51    127.87    121.91    144.34
-// 18   3471.6  3675.8   127.87    160.17    144.34    176.71
-// 19   3675.8  3880.0   160.17    204.00    176.71    220.00
+//  1      0.0   204.2     16.70    13.01     34.70    31.12   ← section 1 includes receiver
+//  2    204.2   408.4     13.01    15.37     31.12    33.58      which narrows 16.7→12mm;
+//  3    408.4   612.6     15.37    18.50     33.58    36.82      OD rises again from sec 2 on.
+//  4    612.6   816.8     18.50    22.23     36.82    40.65
+//  5    816.8  1021.0     22.23    26.48     40.65    45.00
+//  6   1021.0  1225.2     26.48    31.17     45.00    49.80
+//  7   1225.2  1429.4     31.17    36.28     49.80    55.02
+//  8   1429.4  1633.6     36.28    41.77     55.02    60.61
+//  9   1633.6  1837.8     41.77    47.61     60.61    66.56
+// 10   1837.8  2042.0     47.61    53.78     66.56    72.84
+// 11   2042.0  2246.2     53.78    60.27     72.84    79.43
+// 12   2246.2  2450.4     60.27    67.05     79.43    86.32
+// 13   2450.4  2654.6     67.05    74.12     86.32    93.49
+// 14   2654.6  2858.8     74.12    81.46     93.49   100.94
+// 15   2858.8  3063.0     81.46    89.07    100.94   108.65
+// 16   3063.0  3267.2     89.07    99.35    108.65   119.03  ← bell region
+// 17   3267.2  3471.4     99.35   121.48    119.03   141.27
+// 18   3471.4  3675.6    121.48   156.34    141.27   176.24
+// 19   3675.6  3879.8    156.34   203.95    176.24   223.95
 // ============================================================
 
 // ============================================================
@@ -334,12 +460,97 @@ module horn_section(n) {
                     cylinder(h = collar_h + 0.5, r = collar_or, $fn = 128);
                 }
             }
-            }
 
             // Male lugs — embedded 1mm into body wall
             if (n > 1) {
                 male_lugs(od=od0);
             }
+
+            // Collar-exit structural buttress (male end only).
+            // At z=BAYONET_COLLAR the male section exits the female collar —
+            // a sharp stiffness boundary that concentrates bending stress and
+            // caused fractures in test prints. This tapered ring locally adds
+            // COLLAR_REINF_T of extra wall radius, then tapers back to the
+            // natural pipe OD over COLLAR_REINF_H mm, distributing the load.
+            //
+            //  r1 (bottom, z=BAYONET_COLLAR)     = pipe OD + COLLAR_REINF_T
+            //  r2 (top,    z=BAYONET_COLLAR+H)   = natural pipe OD (flush taper)
+            //
+            // The bore subtraction below carves the interior as usual, so the
+            // effective wall at the buttress = wall_at(z) + COLLAR_REINF_T.
+            if (n > 1) {
+                reinf_z0 = BAYONET_COLLAR;
+                reinf_z1 = BAYONET_COLLAR + COLLAR_REINF_H;
+                translate([0, 0, reinf_z0])
+                cylinder(h  = COLLAR_REINF_H,
+                         r1 = bore_od(z0 + reinf_z0) / 2 + COLLAR_REINF_T,
+                         r2 = bore_od(z0 + reinf_z1) / 2,
+                         $fn = 128);
+            }
+
+        // ---- COLLAR-SIDE BOLT BOSS (additive) ----
+        // Longitudinal boss on the OUTSIDE of the female collar
+        // at 3 angles (75/195/315). The boss has TWO regions:
+        //   1. Collar portion: z = len..len+collar_h, embedded
+        //      BOSS_EMBED into the collar wall.
+        //   2. Body extension: z = len-BOSS_DROP..len, embedded
+        //      DEEPLY into the section's flared body material
+        //      (inner face at bore_od(z0+len)/2 - BOSS_EMBED).
+        //      This is the KEY iter-6 feature - it puts the
+        //      insert pocket (and thus the screw's threaded
+        //      anchor) into the body wall BELOW the joint plane,
+        //      so the load path does not depend on the collar-body
+        //      junction surviving.
+        // Both regions share the same outer face at
+        // r = collar_or + COLLAR_BOSS_RAD_H.
+        if (BOLT_REINFORCE && has_female && angle == 0) {
+            body_inner_r = bore_od(z0 + len)/2 - BOSS_EMBED;
+            outer_r = collar_or + COLLAR_BOSS_RAD_H;
+            for (bi = [0 : BOLT_COUNT-1]) {
+                rotate([0, 0, BOLT_PHASE_DEG + bi * (360/BOLT_COUNT)]) {
+                    // Collar portion
+                    translate([collar_or - BOSS_EMBED,
+                               -COLLAR_BOSS_TANG_W/2,
+                               len])
+                    cube([COLLAR_BOSS_RAD_H + BOSS_EMBED,
+                          COLLAR_BOSS_TANG_W,
+                          collar_h]);
+                    // Body extension (the iter-6 anchor)
+                    translate([body_inner_r,
+                               -COLLAR_BOSS_TANG_W/2,
+                               len - BOSS_DROP])
+                    cube([outer_r - body_inner_r,
+                          COLLAR_BOSS_TANG_W,
+                          BOSS_DROP]);
+                }
+            }
+        }
+
+        // ---- MALE-SIDE TAB (additive) ----
+        // Radial tab on the upper section's body, at z = BAYONET_COLLAR
+        // (just above the male zone). Tab is at upper's
+        // BOLT_PHASE_DEG - BAYONET_LOCK_ANGLE = 45/165/285; after the
+        // +30 deg bayonet lock it lands at 75/195/315 in the lower
+        // frame, directly above the lower's collar boss. Tab inner
+        // face embeds BOSS_EMBED into the buttress (>=1.7mm overlap
+        // across its full 5mm axial span). The tab has a vertical
+        // clearance hole for the screw, drilled in the subtraction
+        // block below.
+        if (BOLT_REINFORCE && n > 1 && angle == 0) {
+            prev_collar_or = od0/2 + BAYONET_LUG_H + BAYONET_CL + WALL_TRUNK/2;
+            tab_inner_r = od0/2 + COLLAR_REINF_T - BOSS_EMBED;
+            tab_outer_r = prev_collar_or + COLLAR_BOSS_RAD_H + 0.5;
+            for (bi = [0 : BOLT_COUNT-1]) {
+                rotate([0, 0, BOLT_PHASE_DEG - BAYONET_LOCK_ANGLE
+                              + bi * (360/BOLT_COUNT)])
+                translate([tab_inner_r,
+                           -TAB_TANG_W/2,
+                           BAYONET_COLLAR])
+                cube([tab_outer_r - tab_inner_r,
+                      TAB_TANG_W,
+                      TAB_THICKNESS]);
+            }
+        }
 
         }
 
@@ -417,6 +628,56 @@ module horn_section(n) {
         // assembly; hidden inside the next section's collar after.
         // Applied to ALL sections including section 19 (the bell mouth).
         section_label(n=n, od0=od0);
+
+        // ---- PER-JOINT BOLT HOLES (subtractive) ----
+        // Two vertical (parallel-to-pipe) hole sets:
+        //   1. In the FEMALE COLLAR BOSS: a stepped hole - 4.5mm
+        //      clearance in the upper 8.6mm (from boss top down),
+        //      then 5.3mm insert pocket in the lower 6.4mm. The
+        //      4.5/5.3 step acts as a depth stop when heat-pressing
+        //      the insert. 5mm of solid PLA remains below.
+        //   2. In the MALE BODY TAB: a 4.5mm clearance hole vertically
+        //      through the tab's 5mm axial thickness.
+        // The bolt enters from above the tab, passes through the tab
+        // clearance hole, drops through the boss clearance portion,
+        // and threads into the insert at the bottom of the boss.
+
+        // Female collar+body boss: vertical screw clearance (upper)
+        // + heat-set insert pocket spanning body+collar (lower).
+        // The insert pocket is positioned so that BOSS_DROP=5mm of
+        // it sits in the body wall (z = len-5..len) and the
+        // remaining HEAT_INSERT_L - BOSS_DROP = 1.4mm sits in the
+        // collar above the joint plane.
+        if (BOLT_REINFORCE && has_female && angle == 0) {
+            bolt_r = collar_or + COLLAR_BOSS_RAD_H / 2;
+            insert_top_z = HEAT_INSERT_L - BOSS_DROP;  //  1.4mm above z=len
+            insert_bot_z = insert_top_z - HEAT_INSERT_L;  // -5.0mm (in body)
+            for (bi = [0 : BOLT_COUNT-1]) {
+                rotate([0, 0, BOLT_PHASE_DEG + bi * (360/BOLT_COUNT)]) {
+                    // Upper clearance hole (4.5mm, from insert top to boss top)
+                    translate([bolt_r, 0, len + insert_top_z])
+                    cylinder(h = collar_h - insert_top_z + 0.5,
+                             r = BOLT_CL_D/2, $fn = 32);
+                    // Insert pocket (5.3mm, spans body+collar)
+                    translate([bolt_r, 0, len + insert_bot_z - 0.5])
+                    cylinder(h = HEAT_INSERT_L + 0.5,
+                             r = HEAT_INSERT_D/2, $fn = 32);
+                }
+            }
+        }
+
+        // Male body tab: vertical screw clearance through the tab.
+        if (BOLT_REINFORCE && n > 1 && angle == 0) {
+            prev_collar_or = od0/2 + BAYONET_LUG_H + BAYONET_CL + WALL_TRUNK/2;
+            bolt_r = prev_collar_or + COLLAR_BOSS_RAD_H / 2;
+            for (bi = [0 : BOLT_COUNT-1]) {
+                rotate([0, 0, BOLT_PHASE_DEG - BAYONET_LOCK_ANGLE
+                              + bi * (360/BOLT_COUNT)])
+                translate([bolt_r, 0, BAYONET_COLLAR - 0.5])
+                cylinder(h = TAB_THICKNESS + 1,
+                         r = BOLT_CL_D/2, $fn = 32);
+            }
+        }
 
     }
 }

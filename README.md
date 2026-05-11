@@ -15,7 +15,7 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 | **Section length** | 204.2mm (max print height 247.7mm) |
 | **Curve** | 45° upward bend (3 × 15° at the last three joints) |
 | **Joint type** | Rectangular 3-lug bayonet twist-lock; sealed by friction + optional PTFE tape |
-| **Wall thickness** | 7mm (trunk) → 8mm (bell), linearly interpolated |
+| **Wall thickness** | 9mm (trunk) → 10mm (bell), linearly interpolated |
 
 ## What's in this repository
 
@@ -34,6 +34,41 @@ The design is acoustically correct: the second harmonic plays at F2 (87 Hz) — 
 - **A mouthpiece** — not included in the print. Use either:
   - A commercial alphorn mouthpiece (Stocker, Eggerstorfer, etc.) with shank tip OD ≈ 12mm
   - The Talbot 20mm 3D-printed mouthpiece STL from [argobuilder.com](https://www.argobuilder.com/3d-printed-alphorn.html) — note: scale that STL to **10%** in the slicer
+
+### Per-joint bolt reinforcement
+
+The horn is too long to support itself as PLA alone — under playing-posture
+loads (hands at the mouthpiece end), the first joint sees ~234,000 N·mm of
+bending moment. Three M4 cap screws per joint, **oriented parallel to the
+pipe axis with the threaded anchor in the female section's body wall**,
+carry this load in tension alongside the bayonet lugs.
+
+Each screw passes vertically (parallel to the pipe) from above through a
+short radial tab on the upper section's body, drops through a clearance
+hole in a longitudinal boss on the lower section's collar exterior, and
+threads into a heat-set insert at the bottom of that boss. **Critical
+geometry: 5 mm of the insert is anchored in the female section's *body*
+proper (below the joint plane); only 1.4 mm sits in the collar.** This
+puts the screw's lower anchor on the body side of the collar-body junction
+— so even if that junction (the original failure zone) cracks, the screw
+still ties the two sections together. After the +30° bayonet lock, the
+three tabs land directly above the three collar bosses at 75°/195°/315°
+in the lower section's frame.
+
+Per joint:
+- 3 × M4 × 30mm grade-10.9 socket-head cap screws
+- 3 × M4 heat-set brass inserts (5.3 OD × 6.4 long — McMaster-Carr 92395A115 or equivalent)
+
+Totals for the F horn (18 joints): 54 bolts, 54 inserts.
+Totals for the Bb horn (13 joints): 39 bolts, 39 inserts.
+
+Heat-press inserts into the **collar boss** pockets *before* final assembly
+(soldering iron with M4 tip at ~200 °C). The 4.5 mm / 5.3 mm step in the
+boss hole acts as a depth stop — the insert seats with its top at 1.4 mm
+above the joint plane, leaving 18.6 mm of clearance hole above for the
+screw shank. On assembly: insert the male section, twist 30° CCW to lock
+the bayonet, then drive an M4 × 30 mm screw down through each tab into
+the aligned insert below (~2 N·m).
 
 ## How to print
 
@@ -149,8 +184,8 @@ The uniform +11 cent offset reflects the assumed playing temperature; the player
 | `CURVE_TOTAL_DEG` | 45 | Total bend angle in the bell region |
 | `CURVE_JOINTS` | 3 | Number of joints sharing the bend |
 | `BAYONET_CL` | 0.25 | Print clearance on lugs (increase if too tight) |
-| `WALL_TRUNK` | 7.0 | Wall thickness at the mouthpiece end |
-| `WALL_BELL` | 8.0 | Wall thickness at the bell mouth |
+| `WALL_TRUNK` | 9.0 | Wall thickness at the mouthpiece end |
+| `WALL_BELL` | 10.0 | Wall thickness at the bell mouth |
 
 Changing these will automatically update the section profile table, batching plan, and acoustic length. Re-print the joint test if you change `BAYONET_CL`.
 
